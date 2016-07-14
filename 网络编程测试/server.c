@@ -21,7 +21,7 @@ int main()
   struct sockaddr_in client_addr;
   bzero(&server_addr,sizeof(struct sockaddr_in));
   socklen_t len;
-  server_addr.sin_addr.s_addr=inet_addr("192.168.84.128");
+  server_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
   server_addr.sin_port=htons(8001);
   server_addr.sin_family=AF_INET;
   if((sockfd=socket(PF_INET,SOCK_STREAM,0))==-1)

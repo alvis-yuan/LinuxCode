@@ -6,9 +6,15 @@
 #include <netinet/in.h>  
 #include <event.h>  
 #include <evhttp.h>  
-   
+#include <event2/buffer.h>
+#include <event2/bufferevent.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 void httpserver_handler(struct evhttp_request *req, void *arg)  
 {  
+    int fd=open("./test.html",O_RDONLY);
     const char *cmdtype;   
     struct evbuffer *buf = evbuffer_new();  
     if (buf == NULL)   
@@ -33,14 +39,15 @@ void httpserver_handler(struct evhttp_request *req, void *arg)
   
     printf("%s url=%s \n", cmdtype, evhttp_request_get_uri(req));  
   
-    evbuffer_add_printf(buf,"<html>\n"  
-            "<head>\n"  
-            "  <title>Libevnet Test</title>\n"            
-            "</head>\n"  
-            "<body>\n"  
-            "  <h1>Hello world ,This is a Libenvet Test !</h1>\n"            
-            "</body>\n"  
-            "</html>\n");  
+    //evbuffer_add_printf(buf,"<html>\n"  
+    //        "<head>\n"  
+    //        "  <title>Libevnet Test</title>\n"            
+    //        "</head>\n"  
+    //        "<body>\n"  
+    //        "  <h1>Hello world ,This is a Libenvet Test !</h1>\n"            
+    //        "</body>\n"  
+    //        "</html>\n");
+    evbuffer_read(buf,fd,75);
     evhttp_send_reply(req, 200, "OK", buf);    
 }   
    
@@ -56,12 +63,12 @@ int httpserver_bindsocket(int port, int backlog)
     }  
   
     int opt = 1;  
-    ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));  
+    //ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));  
   
     struct sockaddr_in addr;  
     memset(&addr, 0, sizeof(addr));  
     addr.sin_family = AF_INET;  
-    addr.sin_addr.s_addr = INADDR_ANY;  
+    addr.sin_addr.s_addr =inet_addr("192.168.84.128");  
     addr.sin_port = htons(port);  
   
     ret = bind(fd, (struct sockaddr*)&addr, sizeof(addr));  
