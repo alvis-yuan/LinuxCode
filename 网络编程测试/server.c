@@ -17,8 +17,7 @@ int main()
 {
   int sockfd;
   int newfd;
-  struct sockaddr_in server_addr;
-  struct sockaddr_in client_addr;
+  struct sockaddr_in server_addr; 
   bzero(&server_addr,sizeof(struct sockaddr_in));
   socklen_t len;
   server_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
