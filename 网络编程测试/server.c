@@ -11,6 +11,12 @@
 #include <errno.h>
 #include <string.h>
 
+void func(int num)
+{
+  printf("this is a test!\n");
+}
+
+
 
 //服务器端
 int main()

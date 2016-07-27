@@ -31,6 +31,14 @@ using namespace std;
 
 void DownloadFile(const char *filepath,int clientfd)
 {
+  char *signals;
+  cJSON *root=cJSON_CreateObject();
+  cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(2));
+  signals=cJSON_Print(root);
+  send(clientfd,signals,strlen(signals)+1,0);
+
+
+
   char recvBuf[BUFFSIZE]={'\0'};
   int filefd;
   long long totallength = 0;
@@ -93,8 +101,8 @@ struct FileList
   }
   void Add(char *filepath,long long filesize)
   {
-    FilePath.push_back(filepath);
-    FileSize.push_back(filesize);
+    FilePath[size]=filepath;
+    FileSize[size]=filesize;
     size++;
   }
   void Delete(char *filepath)
@@ -150,46 +158,90 @@ public:
     :sockConn(serverconnection)
   {
     InitLocalfl();
+    InitServerfl();
     RequestServerfl(sockConn);
-    SyncLoop();
+
+  }
+  void InitServerfl()
+  {
+    Serverfl.FilePath.resize(10);
+    Serverfl.FileSize.resize(10);
   }
   void InitLocalfl()
   {
-    mkdir("SyncFloder",0777);
+    mkdir("SyncFloderServer",0777);
+    Localfl.FilePath.resize(10);
+    Localfl.FileSize.resize(10);
+
   }
   void RequestServerfl(int sockConn)
   {
+    char *signals;
+    cJSON *root=cJSON_CreateObject();
+    cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(1));
+    signals=cJSON_Print(root);
+    printf("the signals is %s\n",signals);
+    send(sockConn,signals,strlen(signals)+1,0);
+
+
     char data[FILELISTSIZE]={'\0'};
     int len=recv(sockConn,data,FILELISTSIZE,0);
-    cJSON *array=cJSON_Parse(data);
-    int sizeofarray=cJSON_GetArraySize(array);
+
+    printf("the file path json is %s\n",data);
+
+    send(sockConn,data,FILELISTSIZE,0);//acknowledge receive
+    cJSON *filepath=cJSON_Parse(data);
+
+    int sizeofarray=cJSON_GetArraySize(filepath);
+
+    printf("the array size is %d\n",sizeofarray);
+
     for(int i=0;i<sizeofarray;++i)
     {
-      Serverfl.FilePath[i]=cJSON_GetArrayItem(array,i)->valuestring;
+      char *temp=cJSON_GetArrayItem(filepath,i)->valuestring;
+
+
+      Serverfl.FilePath[i]=*(new string(temp));
+      
+
+
     }
+
+
+    memset(data,'\0',FILELISTSIZE);
     len=recv(sockConn,data,FILELISTSIZE,0);
+
+    printf("the filesize is %s\n",data);
+
+    cJSON *filesize=cJSON_Parse(data);
     for(int i=0;i<sizeofarray;++i)
     {
-      Serverfl.FileSize[i]=cJSON_GetArrayItem(array,i)->valueint;
+      int temp=cJSON_GetArrayItem(filesize,i)->valueint;
+      Serverfl.FileSize[i]=temp;
+
     }
   }
   void FileSync()//专门认为是从服务器端下载到客户端
   {
     RequestServerfl(sockConn);
+    
+    printf("serverfl size is %d",Serverfl.size);
+    printf("localfl size is %d",Localfl.size);
+
+
     if(!(Localfl == Serverfl))
     {
       //need to sync
+      
+      printf("I need to sync!!!\n");
+
       for(int i=0;i<Serverfl.size;++i)
       {
-        if(Localfl.FilePath[i]!=Serverfl.FilePath[i]  || Localfl.FileSize[i]!=Serverfl.FileSize[i] )
-        {
           DownloadFile(Serverfl.FilePath[i].c_str(),sockConn);
-        }
-        else
-        {
-          //do nothing
-        }
+          Localfl.FilePath[i]=Serverfl.FilePath[i];
+          Localfl.FileSize[i]=Serverfl.FileSize[i]; 
       }
+
     }
     //no need to sync
     else
@@ -248,13 +300,21 @@ int ConnectToServer(char *address,int port,struct sockaddr_in& server_addr)
 }
 
 
+void mainstream()
+{
+
+  struct sockaddr_in server_addr;
+  int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
+  Sync *cli=new Sync(sockConn);
+  cli->SyncLoop();
+}
+
+
 
 
 int main()
 {
-  struct sockaddr_in server_addr;
-  int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
-  DownloadFile("testrecv.txt",sockConn);
-  
+  mainstream();
   return 0;
 }
+

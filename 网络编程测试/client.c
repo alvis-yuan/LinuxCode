@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+
+
+
 int main()
 {
   struct sockaddr_in  server_addr;
@@ -26,5 +29,6 @@ int main()
 
   }
   printf("cnnect success");
+  
   return 0;
 }

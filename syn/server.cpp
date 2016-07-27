@@ -13,7 +13,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
+#include <vector>
+#include <signal.h>
+#include "cJSON.h"
 
 using namespace std;
 
@@ -21,6 +23,67 @@ using namespace std;
 
 #define BUFFSIZE 512
 #define DEFAULTPORT 8001
+#define FILELISTSIZE 1024
+
+
+
+struct FileList
+{
+  FileList()
+    :size(0)
+  {
+
+  }
+  void Add(char *filepath,long long filesize)
+  {
+    FilePath[size]=filepath;
+    FileSize[size]=filesize;
+    size++;
+  }
+  void Delete(char *filepath)
+  {
+    vector<string>::iterator it;
+    vector<long long>::iterator itsize;
+    it = FilePath.begin();
+    itsize=FileSize.begin();
+    for(;it!=FilePath.end();)
+    {
+      if(*it==filepath)
+      {
+        it=FilePath.erase(it);
+        itsize=FileSize.erase(itsize);
+        break;
+      }
+      else
+      {
+        it++;
+        itsize++;
+      }
+    }
+    size--;
+  }
+  void change(char *filepath,long long filesize)
+  {
+  }
+  bool operator==(FileList &fl)
+  {
+    if(size!=fl.size)
+    {
+      return false;
+    }
+    for(int i=0;i<size;++i)
+    {
+      if(FilePath[i]!= fl.FilePath[i] || FileSize[i]!=fl.FileSize[i] )
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+    vector<string> FilePath;
+    vector<long long> FileSize;
+    size_t size;
+};
 
 
 int BindSocket(char *address,int port,struct sockaddr_in& server_addr)
@@ -56,7 +119,7 @@ int ConnectToClient(int sockfd,struct sockaddr_in& server_addr)
   clientfd=accept(sockfd,(struct sockaddr *)(&server_addr),&len);
   if(clientfd == -1)
   {
-    printf("accept error\n");
+    printf("accept error%d:%s\n",errno,strerror(errno));
     return -1;
   }
   printf("connect success\n");
@@ -74,8 +137,9 @@ void CloseSocket(int sockfd)
   close(sockfd);
 }
 
-int FileTransport(char * filepath,int sockConn)
+int FileTransport(const char * filepath,int sockConn)
 {
+  printf("I will open %s\n",filepath);
   int filefd=open(filepath,O_RDONLY);
   if(filefd<0)
   {
@@ -115,13 +179,94 @@ int RecviveFile(char *filepath,int clientfd)
   int num=lseek(filefd,0,SEEK_END);
   ftruncate(filefd,totallength);
 }
-int main()
+
+
+void SendFileList(int sockConn,struct FileList& fl)
 {
+  char *data=NULL;
+  cJSON *filepath=cJSON_CreateArray();
+  cJSON *filesize=cJSON_CreateArray();
+  for(int i=0;i<fl.size;++i)
+  {
+    cJSON_AddItemToArray(filepath,cJSON_CreateString(fl.FilePath[i].c_str()));
+  }
+  data=cJSON_Print(filepath);
+  printf("the filepath is %s\n",data);
+  send(sockConn,data,FILELISTSIZE,0);
+
+  recv(sockConn,data,FILELISTSIZE,0);//ackowledge receive
+
+
+  char *size;  
+  for(int i=0;i<fl.size;++i)
+  {
+    cJSON_AddItemToArray(filesize,cJSON_CreateNumber(fl.FileSize[i]));
+  }
+  size=cJSON_Print(filesize);
+
+  printf("the file size is %s\n",size);
+
+  send(sockConn,size,FILELISTSIZE,0);
+}
+
+
+
+
+void mainstream()
+{
+  FileList *Serverfl=new FileList;
+
+  //this is a test
+  int filefd=open("./SyncFloderServer/test.pdf",O_RDONLY);
+  Serverfl->Add("./SyncFloderServer/test.pdf",0);
+  filefd=open("./SyncFloderServer/test1.txt",O_RDONLY);
+  Serverfl->Add("./SyncFloderServer/test1.txt",0);
+  char signals[1024]={'\0'};  
+  //test is over
+  
+  //try to connect client
   struct sockaddr_in server_addr;
   int sockfd;
   sockfd=BindSocket("192.168.84.128",DEFAULTPORT,server_addr);
   int sockConn=ConnectToClient(sockfd,server_addr);
-  FileTransport("test5.txt",sockConn);
+
+  while(1)
+  {
+    recv(sockConn,signals,1023,0);
+
+    printf("recv signal success:%s\n",signals);
+
+
+    cJSON *root=cJSON_Parse(signals);
+    int sig=cJSON_GetObjectItem(root,"signal")->valueint;
+  
+    printf("the sig is %d\n",sig);
+  
+
+
+  
+    if(sig==1)
+    {
+      //request for filelist
+      SendFileList(sockConn,*Serverfl);
+      printf("send filelist complete!\n");
+    }
+    if(sig==2)
+    {
+      //requesr for downloadfile
+      for(int i=0;i<Serverfl->size;++i)
+      {
+        FileTransport(Serverfl->FilePath[i].c_str(),sockConn);
+      }
+    }
+  }
   ShutDownConnect(sockConn);
+  CloseSocket(sockfd);
+}
+
+
+int main()
+{
+  mainstream();
   return 0;
 }
