@@ -20,7 +20,8 @@
 using namespace std;
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
-#define BUFFSIZE 548
+#define BUFFSIZE 512
+#define JSONSIZE 2048
 
 
 #define UPDATERATE 5
@@ -37,7 +38,7 @@ void DownloadFile(const char *filepath,int clientfd)
 
   
 
-  char recvBuf[BUFFSIZE]={'\0'};
+  char recvBuf[JSONSIZE]={'\0'};//>256
   int filefd;
   long long totallength = 0;
   filefd = open(filepath,O_RDWR|O_CREAT,0777);
@@ -46,8 +47,8 @@ void DownloadFile(const char *filepath,int clientfd)
 
     cJSON *transgram;
 
-    int test=recv(clientfd,recvBuf,BUFFSIZE,0);
-    printf("made made meici de test shi duo shao a %d\n",test);
+    int test=recv(clientfd,recvBuf,JSONSIZE,0);//512>test>256
+    printf("made made meici de test shi duo shao a 256<%d<512\n",test);
     printf("I get json is %s\n",recvBuf);
 
 
@@ -63,7 +64,7 @@ void DownloadFile(const char *filepath,int clientfd)
       printf("I try to break\n");
       break;
     }
-    write(filefd ,cJSON_GetObjectItem(transgram,"datapack")->valuestring ,len);
+    write(filefd ,cJSON_GetObjectItem(transgram,"datapack")->valuestring ,BUFFSIZE);
     memset(recvBuf,'\0',BUFFSIZE);
     totallength+=len;
   }

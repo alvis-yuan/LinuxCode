@@ -21,7 +21,8 @@ using namespace std;
 
 
 
-#define BUFFSIZE 548
+#define BUFFSIZE 512
+#define JSONSIZE 2048
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
 
@@ -162,12 +163,12 @@ int FileTransport(const char * filepath,int sockConn)
     printf("WTF the json is %s \n",sendjson);
 
 
-    send(sockConn,sendjson,strlen(sendjson)+1,0);
+    send(sockConn,sendjson,strlen(sendjson)+1,0);//>256
 
-    recv(sockConn,sendBuf,BUFFSIZE,0);
+    recv(sockConn,sendBuf,BUFFSIZE,0);// aknowledge !
 
 
-    memset(sendBuf,'\0',BUFFSIZE);
+    memset(sendBuf,'\0',BUFFSIZE);//256
     if(len < 1)
     {
       printf("this may be 0%s\n",sendBuf);
@@ -234,10 +235,8 @@ void mainstream()
   //this is a test
   int filefd=open("./SyncFloderServer/test2.txt",O_RDONLY);
   Serverfl->Add("./SyncFloderServer/test2.txt",0);
-  filefd=open("./SyncFloderServer/test1.txt",O_RDONLY);
-  Serverfl->Add("./SyncFloderServer/test1.txt",0);
-  filefd=open("./SyncFloderServer/test3.txt",O_RDONLY);
-  Serverfl->Add("./SyncFloderServer/test3.txt",0);
+  filefd=open("./SyncFloderServer/test.jpg",O_RDONLY);
+  Serverfl->Add("./SyncFloderServer/test.jpg",0);
   char signals[1024]={'\0'};  
   //test is over
   
