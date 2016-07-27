@@ -19,25 +19,23 @@
 
 using namespace std;
 #define DEFAULTPORT 8001
-#define BUFFSIZE 512
 #define FILELISTSIZE 1024
+#define BUFFSIZE 548
+
 
 #define UPDATERATE 5
 
 
-
+char fileend[BUFFSIZE]={'\0'};
 
 
 
 void DownloadFile(const char *filepath,int clientfd)
 {
-  char *signals;
-  cJSON *root=cJSON_CreateObject();
-  cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(2));
-  signals=cJSON_Print(root);
-  send(clientfd,signals,strlen(signals)+1,0);
 
+  printf("I will downloadfile %s!\n",filepath);
 
+  
 
   char recvBuf[BUFFSIZE]={'\0'};
   int filefd;
@@ -45,17 +43,33 @@ void DownloadFile(const char *filepath,int clientfd)
   filefd = open(filepath,O_RDWR|O_CREAT,0777);
   while(1)
   {
-    int len = recv(clientfd,recvBuf,BUFFSIZE,0);
-    if(len<1)
+
+    cJSON *transgram;
+
+    int test=recv(clientfd,recvBuf,BUFFSIZE,0);
+    printf("made made meici de test shi duo shao a %d\n",test);
+    printf("I get json is %s\n",recvBuf);
+
+
+    send(clientfd,"acknowledge",BUFFSIZE,0);
+
+
+
+    transgram=cJSON_Parse(recvBuf);
+    int len=cJSON_GetObjectItem(transgram,"length")->valueint;
+
+    if(len==0)
     {
+      printf("I try to break\n");
       break;
     }
-    write(filefd ,recvBuf ,BUFFSIZE);
+    write(filefd ,cJSON_GetObjectItem(transgram,"datapack")->valuestring ,len);
     memset(recvBuf,'\0',BUFFSIZE);
     totallength+=len;
   }
+  printf("\nthe %s file size is %d\n",filepath,totallength);
   int num=lseek(filefd,0,SEEK_END);
-  ftruncate(filefd,totallength);
+ ftruncate(filefd,totallength);
 }
 
 
@@ -186,6 +200,7 @@ public:
     char data[FILELISTSIZE]={'\0'};
     int len=recv(sockConn,data,FILELISTSIZE,0);
 
+    printf("the fileparh is %sn",data);
 
     send(sockConn,data,FILELISTSIZE,0);//acknowledge receive
     cJSON *filepath=cJSON_Parse(data);
@@ -233,21 +248,32 @@ public:
       
       printf("I need to sync!!!\n");
 
+      char *signals;
+      cJSON *root=cJSON_CreateObject();
+      cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(2));
+      signals=cJSON_Print(root);
+      send(sockConn,signals,strlen(signals)+1,0);
+
       for(int i=0;i<Serverfl.size;++i)
       {
+
+
+
           DownloadFile(Serverfl.FilePath[i].c_str(),sockConn);
+
 
           printf("download success!next one\n");
 
           Localfl.FilePath[i]=Serverfl.FilePath[i];
           Localfl.FileSize[i]=Serverfl.FileSize[i]; 
       }
-
+      Localfl.size=Serverfl.size;
     }
     //no need to sync
     else
     {
       //do nothing
+      printf("I don't need to sync ,I choose to do nothing\n");
     }
   }
   void FileUpdate()//专门认为是从客户端上传到服务器端

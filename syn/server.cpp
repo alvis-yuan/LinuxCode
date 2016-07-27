@@ -21,7 +21,7 @@ using namespace std;
 
 
 
-#define BUFFSIZE 512
+#define BUFFSIZE 548
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
 
@@ -140,7 +140,6 @@ void CloseSocket(int sockfd)
 
 int FileTransport(const char * filepath,int sockConn)
 {
-  printf("I will open %s\n",filepath);
   int filefd=open(filepath,O_RDONLY);
   if(filefd<0)
   {
@@ -150,11 +149,29 @@ int FileTransport(const char * filepath,int sockConn)
   char sendBuf[BUFFSIZE]={'\0'};
   while(1)
   {
-    memset(sendBuf,'\0',BUFFSIZE);
+    char *sendjson;
+    cJSON *transgram=cJSON_CreateObject();
+
     int len = read(filefd,sendBuf,BUFFSIZE);
-    send(sockConn,sendBuf,len,0);
+
+    cJSON_AddItemToObject(transgram,"length",cJSON_CreateNumber(len));
+    cJSON_AddItemToObject(transgram,"datapack",cJSON_CreateString(sendBuf));
+    sendjson=cJSON_Print(transgram);
+
+    printf("the length of sendjson is %d\n",strlen(sendjson)+1);
+    printf("WTF the json is %s \n",sendjson);
+
+
+    send(sockConn,sendjson,strlen(sendjson)+1,0);
+
+    recv(sockConn,sendBuf,BUFFSIZE,0);
+
+
+    memset(sendBuf,'\0',BUFFSIZE);
     if(len < 1)
     {
+      printf("this may be 0%s\n",sendBuf);
+    //  send(sockConn,sendjson,BUFFSIZE,0);
       break;
     }
   }
@@ -215,10 +232,12 @@ void mainstream()
 {
   FileList *Serverfl=new FileList;
   //this is a test
-  int filefd=open("./SyncFloderServer/test.pdf",O_RDONLY);
-  Serverfl->Add("./SyncFloderServer/test.pdf",0);
+  int filefd=open("./SyncFloderServer/test2.txt",O_RDONLY);
+  Serverfl->Add("./SyncFloderServer/test2.txt",0);
   filefd=open("./SyncFloderServer/test1.txt",O_RDONLY);
   Serverfl->Add("./SyncFloderServer/test1.txt",0);
+  filefd=open("./SyncFloderServer/test3.txt",O_RDONLY);
+  Serverfl->Add("./SyncFloderServer/test3.txt",0);
   char signals[1024]={'\0'};  
   //test is over
   
@@ -228,18 +247,21 @@ void mainstream()
   sockfd=BindSocket("192.168.84.128",DEFAULTPORT,server_addr);
   int sockConn=ConnectToClient(sockfd,server_addr);
 
+
+int loopcount=0;
+
+
   while(1)
   {
+    printf("wating for signals\n\n");
     recv(sockConn,signals,1023,0);
 
     printf("recv signal success:%s\n",signals);
 
 
     cJSON *root=cJSON_Parse(signals);
+    memset(signals,'\0',1024);
     int sig=cJSON_GetObjectItem(root,"signal")->valueint;
-  
-    printf("the sig is %d\n",sig);
-  
 
 
   
@@ -249,17 +271,25 @@ void mainstream()
       SendFileList(sockConn,*Serverfl);
       printf("send filelist complete!\n");
     }
-    if(sig==2)
+    else if(sig==2)
     {
       //requesr for downloadfile
       for(int i=0;i<Serverfl->size;++i)
       {
         FileTransport(Serverfl->FilePath[i].c_str(),sockConn);
 
+
         printf("file transport success next one!\n");
 
+        sleep(10) ;
       }
+
+
+
+
     }
+    loopcount++;
+    printf("\nthis is the %d loop\n",loopcount);
   }
   ShutDownConnect(sockConn);
   CloseSocket(sockfd);
