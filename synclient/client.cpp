@@ -159,7 +159,6 @@ public:
   {
     InitLocalfl();
     InitServerfl();
-    RequestServerfl(sockConn);
 
   }
   void InitServerfl()
@@ -187,14 +186,14 @@ public:
     char data[FILELISTSIZE]={'\0'};
     int len=recv(sockConn,data,FILELISTSIZE,0);
 
-    printf("the file path json is %s\n",data);
 
     send(sockConn,data,FILELISTSIZE,0);//acknowledge receive
     cJSON *filepath=cJSON_Parse(data);
 
     int sizeofarray=cJSON_GetArraySize(filepath);
 
-    printf("the array size is %d\n",sizeofarray);
+
+    Serverfl.size=sizeofarray;
 
     for(int i=0;i<sizeofarray;++i)
     {
@@ -211,7 +210,6 @@ public:
     memset(data,'\0',FILELISTSIZE);
     len=recv(sockConn,data,FILELISTSIZE,0);
 
-    printf("the filesize is %s\n",data);
 
     cJSON *filesize=cJSON_Parse(data);
     for(int i=0;i<sizeofarray;++i)
@@ -225,8 +223,8 @@ public:
   {
     RequestServerfl(sockConn);
     
-    printf("serverfl size is %d",Serverfl.size);
-    printf("localfl size is %d",Localfl.size);
+    printf("serverfl size is %d\n",Serverfl.size);
+    printf("localfl size is %d\n",Localfl.size);
 
 
     if(!(Localfl == Serverfl))
@@ -238,6 +236,9 @@ public:
       for(int i=0;i<Serverfl.size;++i)
       {
           DownloadFile(Serverfl.FilePath[i].c_str(),sockConn);
+
+          printf("download success!next one\n");
+
           Localfl.FilePath[i]=Serverfl.FilePath[i];
           Localfl.FileSize[i]=Serverfl.FileSize[i]; 
       }

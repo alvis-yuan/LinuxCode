@@ -32,7 +32,8 @@ struct FileList
   FileList()
     :size(0)
   {
-
+    FilePath.resize(10);
+    FileSize.resize(10);
   }
   void Add(char *filepath,long long filesize)
   {
@@ -191,7 +192,6 @@ void SendFileList(int sockConn,struct FileList& fl)
     cJSON_AddItemToArray(filepath,cJSON_CreateString(fl.FilePath[i].c_str()));
   }
   data=cJSON_Print(filepath);
-  printf("the filepath is %s\n",data);
   send(sockConn,data,FILELISTSIZE,0);
 
   recv(sockConn,data,FILELISTSIZE,0);//ackowledge receive
@@ -204,7 +204,6 @@ void SendFileList(int sockConn,struct FileList& fl)
   }
   size=cJSON_Print(filesize);
 
-  printf("the file size is %s\n",size);
 
   send(sockConn,size,FILELISTSIZE,0);
 }
@@ -215,7 +214,6 @@ void SendFileList(int sockConn,struct FileList& fl)
 void mainstream()
 {
   FileList *Serverfl=new FileList;
-
   //this is a test
   int filefd=open("./SyncFloderServer/test.pdf",O_RDONLY);
   Serverfl->Add("./SyncFloderServer/test.pdf",0);
@@ -257,6 +255,9 @@ void mainstream()
       for(int i=0;i<Serverfl->size;++i)
       {
         FileTransport(Serverfl->FilePath[i].c_str(),sockConn);
+
+        printf("file transport success next one!\n");
+
       }
     }
   }
