@@ -21,7 +21,7 @@ using namespace std;
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
 #define BUFFSIZE 548
-
+#define SIGSIZE 17
 
 #define UPDATERATE 5
 
@@ -194,13 +194,14 @@ public:
     cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(1));
     signals=cJSON_Print(root);
     printf("the signals is %s\n",signals);
-    send(sockConn,signals,strlen(signals)+1,0);
+    printf("the length of signals is %d",strlen(signals));
+    send(sockConn,signals,SIGSIZE,0);
 
 
     char data[FILELISTSIZE]={'\0'};
     int len=recv(sockConn,data,FILELISTSIZE,0);
 
-    printf("the fileparh is %sn",data);
+    printf("the fileparh is %s\n",data);
 
     send(sockConn,data,FILELISTSIZE,0);//acknowledge receive
     cJSON *filepath=cJSON_Parse(data);
@@ -252,7 +253,7 @@ public:
       cJSON *root=cJSON_CreateObject();
       cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(2));
       signals=cJSON_Print(root);
-      send(sockConn,signals,strlen(signals)+1,0);
+      send(sockConn,signals,SIGSIZE,0);
 
       for(int i=0;i<Serverfl.size;++i)
       {

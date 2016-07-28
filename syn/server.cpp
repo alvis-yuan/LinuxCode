@@ -24,7 +24,7 @@ using namespace std;
 #define BUFFSIZE 548
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
-
+#define SIGSIZE 17 
 
 
 struct FileList
@@ -238,7 +238,7 @@ void mainstream()
   Serverfl->Add("./SyncFloderServer/test1.txt",0);
   filefd=open("./SyncFloderServer/test3.txt",O_RDONLY);
   Serverfl->Add("./SyncFloderServer/test3.txt",0);
-  char signals[1024]={'\0'};  
+  char signals[SIGSIZE]={'\0'};  
   //test is over
   
   //try to connect client
@@ -254,20 +254,20 @@ int loopcount=0;
   while(1)
   {
     printf("wating for signals\n\n");
-    recv(sockConn,signals,1023,0);
+    recv(sockConn,signals,SIGSIZE,0);
 
     printf("recv signal success:%s\n",signals);
 
 
     cJSON *root=cJSON_Parse(signals);
-    memset(signals,'\0',1024);
+    memset(signals,'\0',SIGSIZE);
     int sig=cJSON_GetObjectItem(root,"signal")->valueint;
-
 
   
     if(sig==1)
     {
       //request for filelist
+      printf("__sync file list__\n");
       SendFileList(sockConn,*Serverfl);
       printf("send filelist complete!\n");
     }
