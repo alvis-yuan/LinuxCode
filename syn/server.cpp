@@ -15,7 +15,16 @@
 #include <sys/types.h>
 #include <vector>
 #include <signal.h>
+#include <pthread.h>
+#include <poll.h>
+
+
+
 #include "cJSON.h"
+
+
+
+
 
 using namespace std;
 
@@ -26,6 +35,15 @@ using namespace std;
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
 #define SIGSIZE 17 
+#define USERLIMIT 5
+
+
+
+struct netneed
+{
+  int sockfd;
+  struct sockaddr_in server_addr;
+};
 
 
 struct FileList
@@ -36,13 +54,13 @@ struct FileList
     FilePath.resize(10);
     FileSize.resize(10);
   }
-  void Add(char *filepath,long long filesize)
+  void Add(const char *filepath,long long filesize)
   {
     FilePath[size]=filepath;
     FileSize[size]=filesize;
     size++;
   }
-  void Delete(char *filepath)
+  void Delete(const char *filepath)
   {
 
 
@@ -68,7 +86,7 @@ struct FileList
     }
     size--;
   }
-  void change(char *filepath,long long filesize)
+  void change(const char *filepath,long long filesize)
   {
   }
   bool operator==(FileList &fl)
@@ -92,7 +110,7 @@ struct FileList
 };
 
 
-int BindSocket(char *address,int port,struct sockaddr_in& server_addr)
+int BindSocket(const char *address,int port,struct sockaddr_in& server_addr)
 {
   int sockfd;
   bzero(&server_addr,sizeof(sockaddr_in));
@@ -252,8 +270,16 @@ void SendFileList(int sockConn,struct FileList& fl)
 
 
 
-void mainstream()
+void* mainstream(void *net)
 {
+  struct netneed *tmp=(struct netneed *)(net);
+  int sockfd=tmp->sockfd;
+  struct sockaddr_in server_addr=tmp->server_addr;
+
+  int sockConn=ConnectToClient(sockfd,server_addr);
+
+
+
   FileList *Serverfl=new FileList;
   //this is a test
   int filefd=open("./SyncFloderServer/test2.txt",O_RDONLY);
@@ -266,10 +292,10 @@ void mainstream()
   //test is over
   
   //try to connect client
-  struct sockaddr_in server_addr;
-  int sockfd;
-  sockfd=BindSocket("192.168.84.128",DEFAULTPORT,server_addr);
-  int sockConn=ConnectToClient(sockfd,server_addr);
+  //struct sockaddr_in server_addr;
+  //int sockfd;
+  //sockfd=BindSocket("192.168.84.128",DEFAULTPORT,server_addr);
+  //int sockConn=ConnectToClient(sockfd,server_addr);
 
 
 int loopcount=0;
@@ -349,12 +375,52 @@ int loopcount=0;
     printf("\nthis is the %d loop\n",loopcount);
   }
   ShutDownConnect(sockConn);
-  CloseSocket(sockfd);
 }
+
+
+
 
 
 int main()
 {
-  mainstream();
+
+  //try to connect client
+  struct sockaddr_in server_addr;
+  int sockfd;
+  sockfd=BindSocket("192.168.84.128",DEFAULTPORT,server_addr);
+  struct netneed net;
+  net.sockfd=sockfd;
+  net.server_addr=server_addr;
+
+  
+
+  struct pollfd fds[1];
+  fds[0].fd=sockfd;
+  fds[0].events=POLLIN | POLLERR;
+  fds[0].revents=0;
+
+
+  pthread_t *tid=new pthread_t[USERLIMIT];
+  int usercount=0;
+
+  while(1)
+  {
+    int ret;
+    ret=poll(fds,1,-1);
+    if(ret<0)
+    {
+      printf("poll error\n");
+      break;
+    }
+    if(fds[0].revents & POLLIN)
+    {
+
+      pthread_create(&tid[usercount],NULL,mainstream,&(net));
+      usercount++;
+    }
+  }
+
+
+  CloseSocket(sockfd);
   return 0;
 }

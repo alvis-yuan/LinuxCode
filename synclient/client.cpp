@@ -378,9 +378,9 @@ void mainstream()
   int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
   Sync *cli=new Sync(sockConn);
   //cli->SyncAdd("./SyncFloderServer/test3.txt",0);
-  cli->SyncDelete("./SyncFloderServer/test1.txt");
+  //cli->SyncDelete("./SyncFloderServer/test1.txt");
   
-  //cli->SyncLoop();
+  cli->SyncLoop();
 }
 
 
