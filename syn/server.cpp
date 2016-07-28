@@ -21,7 +21,8 @@ using namespace std;
 
 
 
-#define BUFFSIZE 548
+#define BUFFSIZE 512
+#define JSONSIZE 2048
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
 #define SIGSIZE 17 
@@ -177,25 +178,45 @@ int FileTransport(const char * filepath,int sockConn)
   }
   return 0;
 }
-int RecviveFile(char *filepath,int clientfd)
+int ReceiveFile(char *filepath,int clientfd)
 {
+ printf("I will downloadfile %s!\n",filepath);
+
+  
+
   char recvBuf[BUFFSIZE]={'\0'};
   int filefd;
   long long totallength = 0;
   filefd = open(filepath,O_RDWR|O_CREAT,0777);
   while(1)
   {
-    int len = recv(clientfd,recvBuf,BUFFSIZE,0);
-    if(len<1)
+
+    cJSON *transgram;
+
+    int test=recv(clientfd,recvBuf,BUFFSIZE,0);
+    printf("made made meici de test shi duo shao a %d\n",test);
+    printf("I get json is %s\n",recvBuf);
+
+
+    send(clientfd,"acknowledge",BUFFSIZE,0);
+
+
+
+    transgram=cJSON_Parse(recvBuf);
+    int len=cJSON_GetObjectItem(transgram,"length")->valueint;
+
+    if(len==0)
     {
+      printf("I try to break\n");
       break;
     }
-    write(filefd ,recvBuf ,BUFFSIZE);
+    write(filefd ,cJSON_GetObjectItem(transgram,"datapack")->valuestring ,len);
     memset(recvBuf,'\0',BUFFSIZE);
     totallength+=len;
   }
+  printf("\nthe %s file size is %d\n",filepath,totallength);
   int num=lseek(filefd,0,SEEK_END);
-  ftruncate(filefd,totallength);
+ ftruncate(filefd,totallength);
 }
 
 
@@ -284,6 +305,23 @@ int loopcount=0;
         sleep(10) ;
       }
 
+    }
+    else if(sig==3)
+    {
+      char fileinforecv[BUFFSIZE]={'\0'};
+      
+      recv(sockConn,fileinforecv,BUFFSIZE,0);
+
+      printf("the filepath is %s\n",fileinforecv);
+
+
+      cJSON *fileinfo=cJSON_Parse(fileinforecv);
+      char *filepath=cJSON_GetObjectItem(fileinfo,"filepath")->valuestring;
+      int filesize=cJSON_GetObjectItem(fileinfo,"filesize")->valueint;
+      Serverfl->Add(filepath,filesize);
+
+
+      ReceiveFile(filepath,sockConn);
 
 
 

@@ -20,7 +20,8 @@
 using namespace std;
 #define DEFAULTPORT 8001
 #define FILELISTSIZE 1024
-#define BUFFSIZE 548
+#define BUFFSIZE 512
+#define JSONSIZE 2048
 #define SIGSIZE 17
 
 #define UPDATERATE 5
@@ -73,7 +74,7 @@ void DownloadFile(const char *filepath,int clientfd)
 }
 
 
-int UpdateFile(char *filepath,int sockConn)
+int UpdateFile(const char *filepath,int sockConn)
 {
 
   int filefd=open(filepath,O_RDONLY);
@@ -85,11 +86,29 @@ int UpdateFile(char *filepath,int sockConn)
   char sendBuf[BUFFSIZE]={'\0'};
   while(1)
   {
-    memset(sendBuf,'\0',BUFFSIZE);
+    char *sendjson;
+    cJSON *transgram=cJSON_CreateObject();
+
     int len = read(filefd,sendBuf,BUFFSIZE);
-    send(sockConn,sendBuf,len,0);
+
+    cJSON_AddItemToObject(transgram,"length",cJSON_CreateNumber(len));
+    cJSON_AddItemToObject(transgram,"datapack",cJSON_CreateString(sendBuf));
+    sendjson=cJSON_Print(transgram);
+
+    printf("the length of sendjson is %d\n",strlen(sendjson)+1);
+    printf("WTF the json is %s \n",sendjson);
+
+
+    send(sockConn,sendjson,strlen(sendjson)+1,0);
+
+    recv(sockConn,sendBuf,BUFFSIZE,0);
+
+
+    memset(sendBuf,'\0',BUFFSIZE);
     if(len < 1)
     {
+      printf("this may be 0%s\n",sendBuf);
+    //  send(sockConn,sendjson,BUFFSIZE,0);
       break;
     }
   }
@@ -113,7 +132,7 @@ struct FileList
   {
 
   }
-  void Add(char *filepath,long long filesize)
+  void Add(const char *filepath,long long filesize)
   {
     FilePath[size]=filepath;
     FileSize[size]=filesize;
@@ -193,8 +212,6 @@ public:
     cJSON *root=cJSON_CreateObject();
     cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(1));
     signals=cJSON_Print(root);
-    printf("the signals is %s\n",signals);
-    printf("the length of signals is %d",strlen(signals));
     send(sockConn,signals,SIGSIZE,0);
 
 
@@ -277,15 +294,32 @@ public:
       printf("I don't need to sync ,I choose to do nothing\n");
     }
   }
-  void FileUpdate()//专门认为是从客户端上传到服务器端
+  void FileUpdate(const char *filepath,int filesize)//专门认为是从客户端上传到服务器端
   {
     //add or delete or change will do this
+    char *signals;
+    cJSON *root=cJSON_CreateObject();
+    cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(3));
+    signals=cJSON_Print(root);
+    send(sockConn,signals,SIGSIZE,0);
+
+    Localfl.Add(filepath,filesize);
+
+
+    cJSON *fileinfo=cJSON_CreateObject();
+    cJSON_AddItemToObject(fileinfo,"filepath",cJSON_CreateString(filepath));
+    cJSON_AddItemToObject(fileinfo,"filesize",cJSON_CreateNumber(filesize));
+    char *fileinfosend=cJSON_Print(fileinfo);
+    send(sockConn,fileinfosend,BUFFSIZE,0);
+
+
+    UpdateFile(filepath,sockConn);
   }
 
   void SyncAdd(char *filepath,long long filesize)
   {
     Localfl.Add(filepath,filesize);
-    FileUpdate();
+    FileUpdate(filepath,filesize);
   }
   void SyncDelete();
   void SyncChange();
@@ -334,7 +368,8 @@ void mainstream()
   struct sockaddr_in server_addr;
   int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
   Sync *cli=new Sync(sockConn);
-  cli->SyncLoop();
+  cli->SyncAdd("./SyncFloderServer/test3.txt",0);
+  //cli->SyncLoop();
 }
 
 
