@@ -38,7 +38,7 @@ void DownloadFile(const char *filepath,int clientfd)
 
   
 
-  char recvBuf[BUFFSIZE]={'\0'};
+  char recvBuf[JSONSIZE]={'\0'};
   int filefd;
   long long totallength = 0;
   filefd = open(filepath,O_RDWR|O_CREAT,0777);
@@ -47,7 +47,7 @@ void DownloadFile(const char *filepath,int clientfd)
 
     cJSON *transgram;
 
-    int test=recv(clientfd,recvBuf,BUFFSIZE,0);
+    int test=recv(clientfd,recvBuf,JSONSIZE,0);
     printf("made made meici de test shi duo shao a %d\n",test);
     printf("I get json is %s\n",recvBuf);
 
@@ -65,7 +65,7 @@ void DownloadFile(const char *filepath,int clientfd)
       break;
     }
     write(filefd ,cJSON_GetObjectItem(transgram,"datapack")->valuestring ,len);
-    memset(recvBuf,'\0',BUFFSIZE);
+    memset(recvBuf,'\0',JSONSIZE);
     totallength+=len;
   }
   printf("\nthe %s file size is %d\n",filepath,totallength);
@@ -368,8 +368,8 @@ void mainstream()
   struct sockaddr_in server_addr;
   int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
   Sync *cli=new Sync(sockConn);
-  cli->SyncAdd("./SyncFloderServer/test3.txt",0);
-  //cli->SyncLoop();
+  //cli->SyncAdd("./SyncFloderServer/test3.txt",0);
+  cli->SyncLoop();
 }
 
 
