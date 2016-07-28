@@ -44,12 +44,16 @@ struct FileList
   }
   void Delete(char *filepath)
   {
+
+
     vector<string>::iterator it;
     vector<long long>::iterator itsize;
     it = FilePath.begin();
     itsize=FileSize.begin();
     for(;it!=FilePath.end();)
     {
+      printf("%s   ",it->c_str());
+      printf("%d\n",*itsize);
       if(*it==filepath)
       {
         it=FilePath.erase(it);
@@ -194,7 +198,6 @@ int ReceiveFile(char *filepath,int clientfd)
     cJSON *transgram;
 
     int test=recv(clientfd,recvBuf,BUFFSIZE,0);
-    printf("made made meici de test shi duo shao a %d\n",test);
     printf("I get json is %s\n",recvBuf);
 
 
@@ -324,6 +327,22 @@ int loopcount=0;
       ReceiveFile(filepath,sockConn);
 
 
+
+    }
+    else if(sig == 4)
+    {
+      char filepath[JSONSIZE]={'\0'};
+      recv(sockConn,filepath,JSONSIZE,0);
+
+      printf("the filepath is %s\n",filepath);
+
+      Serverfl->Delete(filepath);
+
+      printf("__filelist delete__\n");
+
+      remove(filepath);
+
+      printf("delete complete\n");
 
     }
     loopcount++;

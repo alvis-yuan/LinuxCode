@@ -48,7 +48,6 @@ void DownloadFile(const char *filepath,int clientfd)
     cJSON *transgram;
 
     int test=recv(clientfd,recvBuf,JSONSIZE,0);
-    printf("made made meici de test shi duo shao a %d\n",test);
     printf("I get json is %s\n",recvBuf);
 
 
@@ -138,7 +137,7 @@ struct FileList
     FileSize[size]=filesize;
     size++;
   }
-  void Delete(char *filepath)
+  void Delete(const char *filepath)
   {
     vector<string>::iterator it;
     vector<long long>::iterator itsize;
@@ -160,7 +159,7 @@ struct FileList
     }
     size--;
   }
-  void change(char *filepath,long long filesize)
+  void change(const char *filepath,long long filesize)
   {
   }
   bool operator==(FileList &fl)
@@ -321,7 +320,17 @@ public:
     Localfl.Add(filepath,filesize);
     FileUpdate(filepath,filesize);
   }
-  void SyncDelete();
+  void SyncDelete(const char *filepath)
+  {
+    char *signals;
+    cJSON *root=cJSON_CreateObject();
+    cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(4));
+    signals=cJSON_Print(root);
+    send(sockConn,signals,SIGSIZE,0);
+
+    Localfl.Delete(filepath);
+    send(sockConn,filepath,JSONSIZE,0);
+  }
   void SyncChange();
   void SyncLoop()
   {
@@ -369,7 +378,9 @@ void mainstream()
   int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
   Sync *cli=new Sync(sockConn);
   //cli->SyncAdd("./SyncFloderServer/test3.txt",0);
-  cli->SyncLoop();
+  cli->SyncDelete("./SyncFloderServer/test1.txt");
+  
+  //cli->SyncLoop();
 }
 
 
