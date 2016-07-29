@@ -163,13 +163,17 @@ void CloseSocket(int sockfd)
 
 int FileTransport(const char * filepath,int sockConn)
 {
+
+  printf("tranporting file%s\n",filepath);
+
   int filefd=open(filepath,O_RDONLY);
   if(filefd<0)
   {
     printf("file open error!\n");
     return -1;
   }
-  char sendBuf[BUFFSIZE]={'\0'};
+  char sendBuf[JSONSIZE]={'\0'};
+  char jsonbuf[JSONSIZE]={'\0'};
   while(1)
   {
     char *sendjson;
@@ -181,20 +185,20 @@ int FileTransport(const char * filepath,int sockConn)
     cJSON_AddItemToObject(transgram,"datapack",cJSON_CreateString(sendBuf));
     sendjson=cJSON_Print(transgram);
 
-    printf("the length of sendjson is %d\n",strlen(sendjson)+1);
-    printf("WTF the json is %s \n",sendjson);
+    //printf("the length of sendjson is %d\n",strlen(sendjson)+1);
+    //printf("WTF the json is %s \n",sendjson);
+    strcpy(jsonbuf,sendjson);
 
 
-    send(sockConn,sendjson,strlen(sendjson)+1,0);
-
-    recv(sockConn,sendBuf,BUFFSIZE,0);
+    int temp=send(sockConn,jsonbuf,JSONSIZE,0);
 
 
-    memset(sendBuf,'\0',BUFFSIZE);
+    recv(sockConn,sendBuf,JSONSIZE,0);
+
+
+    memset(sendBuf,'\0',JSONSIZE);
     if(len < 1)
     {
-      printf("this may be 0%s\n",sendBuf);
-    //  send(sockConn,sendjson,BUFFSIZE,0);
       break;
     }
   }
@@ -202,11 +206,12 @@ int FileTransport(const char * filepath,int sockConn)
 }
 int ReceiveFile(char *filepath,int clientfd)
 {
- printf("I will downloadfile %s!\n",filepath);
+ 
+  printf("downloading file %s......\n",filepath);
 
   
 
-  char recvBuf[BUFFSIZE]={'\0'};
+  char recvBuf[JSONSIZE]={'\0'};
   int filefd;
   long long totallength = 0;
   filefd = open(filepath,O_RDWR|O_CREAT,0777);
@@ -215,11 +220,10 @@ int ReceiveFile(char *filepath,int clientfd)
 
     cJSON *transgram;
 
-    int test=recv(clientfd,recvBuf,BUFFSIZE,0);
-    printf("I get json is %s\n",recvBuf);
+    int test=recv(clientfd,recvBuf,JSONSIZE,0);
 
 
-    send(clientfd,"acknowledge",BUFFSIZE,0);
+    send(clientfd,"acknowledge",JSONSIZE,0);
 
 
 
@@ -228,14 +232,12 @@ int ReceiveFile(char *filepath,int clientfd)
 
     if(len==0)
     {
-      printf("I try to break\n");
       break;
     }
     write(filefd ,cJSON_GetObjectItem(transgram,"datapack")->valuestring ,len);
-    memset(recvBuf,'\0',BUFFSIZE);
+    memset(recvBuf,'\0',JSONSIZE);
     totallength+=len;
   }
-  printf("\nthe %s file size is %d\n",filepath,totallength);
   int num=lseek(filefd,0,SEEK_END);
  ftruncate(filefd,totallength);
 }
@@ -244,6 +246,8 @@ int ReceiveFile(char *filepath,int clientfd)
 void SendFileList(int sockConn,struct FileList& fl)
 {
   char *data=NULL;
+  char sendfilelistjson[FILELISTSIZE]={'\0'};
+
   cJSON *filepath=cJSON_CreateArray();
   cJSON *filesize=cJSON_CreateArray();
   for(int i=0;i<fl.size;++i)
@@ -251,10 +255,16 @@ void SendFileList(int sockConn,struct FileList& fl)
     cJSON_AddItemToArray(filepath,cJSON_CreateString(fl.FilePath[i].c_str()));
   }
   data=cJSON_Print(filepath);
-  send(sockConn,data,FILELISTSIZE,0);
 
-  recv(sockConn,data,FILELISTSIZE,0);//ackowledge receive
+  strcpy(sendfilelistjson,data);
 
+  int tem=send(sockConn,sendfilelistjson,FILELISTSIZE,0);
+
+
+
+  recv(sockConn,sendfilelistjson,FILELISTSIZE,0);//ackowledge receive
+
+  memset(sendfilelistjson,'\0',FILELISTSIZE);
 
   char *size;  
   for(int i=0;i<fl.size;++i)
@@ -263,8 +273,9 @@ void SendFileList(int sockConn,struct FileList& fl)
   }
   size=cJSON_Print(filesize);
 
+  strcpy(sendfilelistjson,size);
 
-  send(sockConn,size,FILELISTSIZE,0);
+  send(sockConn,sendfilelistjson,FILELISTSIZE,0);
 }
 
 
@@ -284,10 +295,8 @@ void* mainstream(void *net)
   //this is a test
   int filefd=open("./SyncFloderServer/test2.txt",O_RDONLY);
   Serverfl->Add("./SyncFloderServer/test2.txt",0);
-  filefd=open("./SyncFloderServer/test1.txt",O_RDONLY);
-  Serverfl->Add("./SyncFloderServer/test1.txt",0);
-  filefd=open("./SyncFloderServer/test3.txt",O_RDONLY);
-  Serverfl->Add("./SyncFloderServer/test3.txt",0);
+  filefd=open("./SyncFloderServer/test6.txt",O_RDONLY);
+  Serverfl->Add("./SyncFloderServer/test6.txt",0);
   char signals[SIGSIZE]={'\0'};  
   //test is over
   
@@ -303,10 +312,9 @@ int loopcount=0;
 
   while(1)
   {
-    printf("wating for signals\n\n");
+    printf("wating for signals......\n\n");
     recv(sockConn,signals,SIGSIZE,0);
 
-    printf("recv signal success:%s\n",signals);
 
 
     cJSON *root=cJSON_Parse(signals);
@@ -314,12 +322,14 @@ int loopcount=0;
     int sig=cJSON_GetObjectItem(root,"signal")->valueint;
 
   
+    printf("recv signal success:%d\n",sig);
+
     if(sig==1)
     {
       //request for filelist
-      printf("__sync file list__\n");
+      printf("sync file list......\n");
       SendFileList(sockConn,*Serverfl);
-      printf("send filelist complete!\n");
+      printf("sync filelist complete\n");
     }
     else if(sig==2)
     {
@@ -328,10 +338,7 @@ int loopcount=0;
       {
         FileTransport(Serverfl->FilePath[i].c_str(),sockConn);
 
-
-        printf("file transport success next one!\n");
-
-        sleep(10) ;
+       // sleep(10) ;
       }
 
     }
@@ -362,7 +369,11 @@ int loopcount=0;
 
       printf("the filepath is %s\n",filepath);
 
+
+      printf("before delete %d\n",Serverfl->size);
       Serverfl->Delete(filepath);
+      printf("after delete %d\n",Serverfl->size);
+      
 
       printf("__filelist delete__\n");
 
@@ -372,7 +383,6 @@ int loopcount=0;
 
     }
     loopcount++;
-    printf("\nthis is the %d loop\n",loopcount);
   }
   ShutDownConnect(sockConn);
 }
@@ -402,6 +412,9 @@ int main()
 
   pthread_t *tid=new pthread_t[USERLIMIT];
   int usercount=0;
+
+
+  printf("waiting for clients......\n");
 
   while(1)
   {

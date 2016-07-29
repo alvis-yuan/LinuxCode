@@ -34,7 +34,7 @@ char fileend[BUFFSIZE]={'\0'};
 void DownloadFile(const char *filepath,int clientfd)
 {
 
-  printf("I will downloadfile %s!\n",filepath);
+  printf("downloading file %s......\n",filepath);
 
   
 
@@ -48,10 +48,9 @@ void DownloadFile(const char *filepath,int clientfd)
     cJSON *transgram;
 
     int test=recv(clientfd,recvBuf,JSONSIZE,0);
-    printf("I get json is %s\n",recvBuf);
 
 
-    send(clientfd,"acknowledge",BUFFSIZE,0);
+    send(clientfd,"acknowledge",JSONSIZE,0);
 
 
 
@@ -60,14 +59,12 @@ void DownloadFile(const char *filepath,int clientfd)
 
     if(len==0)
     {
-      printf("I try to break\n");
       break;
     }
     write(filefd ,cJSON_GetObjectItem(transgram,"datapack")->valuestring ,len);
     memset(recvBuf,'\0',JSONSIZE);
     totallength+=len;
   }
-  printf("\nthe %s file size is %d\n",filepath,totallength);
   int num=lseek(filefd,0,SEEK_END);
  ftruncate(filefd,totallength);
 }
@@ -82,7 +79,8 @@ int UpdateFile(const char *filepath,int sockConn)
     printf("file open error!\n");
     return -1;
   }
-  char sendBuf[BUFFSIZE]={'\0'};
+  char sendBuf[JSONSIZE]={'\0'};
+  char jsonbuf[JSONSIZE]={'\0'};
   while(1)
   {
     char *sendjson;
@@ -94,20 +92,20 @@ int UpdateFile(const char *filepath,int sockConn)
     cJSON_AddItemToObject(transgram,"datapack",cJSON_CreateString(sendBuf));
     sendjson=cJSON_Print(transgram);
 
-    printf("the length of sendjson is %d\n",strlen(sendjson)+1);
-    printf("WTF the json is %s \n",sendjson);
+    //printf("the length of sendjson is %d\n",strlen(sendjson)+1);
+    //printf("WTF the json is %s \n",sendjson);
+    strcpy(jsonbuf,sendjson);
 
 
-    send(sockConn,sendjson,strlen(sendjson)+1,0);
-
-    recv(sockConn,sendBuf,BUFFSIZE,0);
+    int temp=send(sockConn,jsonbuf,JSONSIZE,0);
 
 
-    memset(sendBuf,'\0',BUFFSIZE);
+    recv(sockConn,sendBuf,JSONSIZE,0);
+
+
+    memset(sendBuf,'\0',JSONSIZE);
     if(len < 1)
     {
-      printf("this may be 0%s\n",sendBuf);
-    //  send(sockConn,sendjson,BUFFSIZE,0);
       break;
     }
   }
@@ -215,11 +213,13 @@ public:
 
 
     char data[FILELISTSIZE]={'\0'};
+
     int len=recv(sockConn,data,FILELISTSIZE,0);
 
-    printf("the fileparh is %s\n",data);
 
-    send(sockConn,data,FILELISTSIZE,0);//acknowledge receive
+    send(sockConn,data,FILELISTSIZE,0);//acknowledge send
+    
+    
     cJSON *filepath=cJSON_Parse(data);
 
     int sizeofarray=cJSON_GetArraySize(filepath);
@@ -253,17 +253,19 @@ public:
   }
   void FileSync()//专门认为是从服务器端下载到客户端
   {
+    printf("syncing filelist......\n");
     RequestServerfl(sockConn);
-    
-    printf("serverfl size is %d\n",Serverfl.size);
-    printf("localfl size is %d\n",Localfl.size);
+    printf("filelist recvive complete!\n");
+    //printf("serverfl size is %d\n",Serverfl.size);
+    //printf("localfl size is %d\n",Localfl.size);
 
 
     if(!(Localfl == Serverfl))
     {
       //need to sync
       
-      printf("I need to sync!!!\n");
+      printf("need to sync\n");
+      printf("___sync strart___\n");
 
       char *signals;
       cJSON *root=cJSON_CreateObject();
@@ -285,6 +287,7 @@ public:
           Localfl.FileSize[i]=Serverfl.FileSize[i]; 
       }
       Localfl.size=Serverfl.size;
+      printf("___sync end___\n");
     }
     //no need to sync
     else
@@ -315,7 +318,7 @@ public:
     UpdateFile(filepath,sockConn);
   }
 
-  void SyncAdd(char *filepath,long long filesize)
+  void SyncAdd(const char *filepath,long long filesize)
   {
     Localfl.Add(filepath,filesize);
     FileUpdate(filepath,filesize);
@@ -332,14 +335,6 @@ public:
     send(sockConn,filepath,JSONSIZE,0);
   }
   void SyncChange();
-  void SyncLoop()
-  {
-    while(1)
-    {
-      sleep(UPDATERATE);
-      FileSync();
-    }
-  }
 
 private:
   int sockConn;
@@ -349,7 +344,7 @@ private:
 
 
 
-int ConnectToServer(char *address,int port,struct sockaddr_in& server_addr)
+int ConnectToServer(const char *address,int port,struct sockaddr_in& server_addr)
 {
   server_addr.sin_addr.s_addr=inet_addr(address);
   server_addr.sin_port=htons(port);
@@ -366,7 +361,7 @@ int ConnectToServer(char *address,int port,struct sockaddr_in& server_addr)
     printf("connect error!\n");
     return -1;
   }
-  printf("coonnect success!\n");
+  printf("connect success!\n");
   return sockfd;
 }
 
@@ -377,10 +372,15 @@ void mainstream()
   struct sockaddr_in server_addr;
   int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
   Sync *cli=new Sync(sockConn);
-  //cli->SyncAdd("./SyncFloderServer/test3.txt",0);
-  //cli->SyncDelete("./SyncFloderServer/test1.txt");
+  cli->SyncAdd("./SyncFloderServer/test1.txt",0);
+  cli->SyncDelete("./SyncFloderServer/test1.txt");
   
-  cli->SyncLoop();
+  while(1)
+  {
+    alarm(UPDATERATE);
+    //sleep(UPDATERATE);
+    cli->FileSync();
+  }
 }
 
 
