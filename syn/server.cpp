@@ -307,9 +307,6 @@ void* mainstream(void *net)
   //int sockConn=ConnectToClient(sockfd,server_addr);
 
 
-int loopcount=0;
-
-
   while(1)
   {
     printf("wating for signals......\n\n");
@@ -340,6 +337,7 @@ int loopcount=0;
 
        // sleep(10) ;
       }
+
 
     }
     else if(sig==3)
@@ -382,9 +380,12 @@ int loopcount=0;
       printf("delete complete\n");
 
     }
-    loopcount++;
+    else if(sig==5)
+    {
+      ShutDownConnect(sockConn);
+      pthread_exit((void*)1);
+    }
   }
-  ShutDownConnect(sockConn);
 }
 
 

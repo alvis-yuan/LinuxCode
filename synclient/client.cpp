@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 #include <string>
 #include <vector>
 #include "cJSON.h"
@@ -114,7 +115,15 @@ int UpdateFile(const char *filepath,int sockConn)
 
 
 
+void SendSignal(int sig,int sockConn)
+{
 
+      char *signals;
+      cJSON *root=cJSON_CreateObject();
+      cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(sig));
+      signals=cJSON_Print(root);
+      send(sockConn,signals,SIGSIZE,0);
+}
 
 
 
@@ -259,6 +268,7 @@ public:
     //printf("serverfl size is %d\n",Serverfl.size);
     //printf("localfl size is %d\n",Localfl.size);
 
+    SendSignal(2,sockConn);
 
     if(!(Localfl == Serverfl))
     {
@@ -267,11 +277,6 @@ public:
       printf("need to sync\n");
       printf("___sync strart___\n");
 
-      char *signals;
-      cJSON *root=cJSON_CreateObject();
-      cJSON_AddItemToObject(root,"signal",cJSON_CreateNumber(2));
-      signals=cJSON_Print(root);
-      send(sockConn,signals,SIGSIZE,0);
 
       for(int i=0;i<Serverfl.size;++i)
       {
@@ -287,6 +292,9 @@ public:
           Localfl.FileSize[i]=Serverfl.FileSize[i]; 
       }
       Localfl.size=Serverfl.size;
+
+      SendSignal(5,sockConn);
+
       printf("___sync end___\n");
     }
     //no need to sync
@@ -346,6 +354,7 @@ private:
 
 int ConnectToServer(const char *address,int port,struct sockaddr_in& server_addr)
 {
+  printf("Connecting to Server......\n");
   server_addr.sin_addr.s_addr=inet_addr(address);
   server_addr.sin_port=htons(port);
   server_addr.sin_family=AF_INET;
@@ -364,22 +373,38 @@ int ConnectToServer(const char *address,int port,struct sockaddr_in& server_addr
   printf("connect success!\n");
   return sockfd;
 }
+void ShutDownConnect(int sockConn)
+{
+  close(sockConn);
+}
+
+
+
+
+void filesync(int num)
+{
+  struct sockaddr_in server_addr;
+  int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
+  struct Sync *cli=new Sync(sockConn);
+  cli->FileSync();
+  ShutDownConnect(sockConn);
+  alarm(UPDATERATE);
+}
 
 
 void mainstream()
 {
 
-  struct sockaddr_in server_addr;
-  int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
-  Sync *cli=new Sync(sockConn);
-  cli->SyncAdd("./SyncFloderServer/test1.txt",0);
-  cli->SyncDelete("./SyncFloderServer/test1.txt");
   
+  //cli->SyncAdd("./SyncFloderServer/test1.txt",0);
+  //cli->SyncDelete("./SyncFloderServer/test1.txt");
+
+  signal(SIGALRM,filesync);
+  alarm(UPDATERATE);
+  char command[1024]={'\0'};
   while(1)
   {
-    alarm(UPDATERATE);
     //sleep(UPDATERATE);
-    cli->FileSync();
   }
 }
 
