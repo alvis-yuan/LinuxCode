@@ -25,7 +25,7 @@ using namespace std;
 #define JSONSIZE 2048
 #define SIGSIZE 17
 
-#define UPDATERATE 5
+#define UPDATERATE 3
 
 
 char fileend[BUFFSIZE]={'\0'};
@@ -270,12 +270,12 @@ public:
     //printf("serverfl size is %d\n",Serverfl.size);
     //printf("localfl size is %d\n",Localfl.size);
 
-    SendSignal(2,sockConn);
 
     if(!(Localfl == Serverfl))
     {
       //need to sync
       
+      SendSignal(2,sockConn);
       printf("need to sync\n");
       printf("___sync strart___\n");
 
@@ -295,7 +295,6 @@ public:
       }
       Localfl.size=Serverfl.size;
 
-      SendSignal(5,sockConn);
 
       printf("___sync end___\n");
     }
@@ -305,6 +304,7 @@ public:
       //do nothing
       printf("I don't need to sync ,I choose to do nothing\n");
     }
+    SendSignal(5,sockConn);
   }
   void FileUpdate(const char *filepath,int filesize)//专门认为是从客户端上传到服务器端
   {
@@ -381,13 +381,12 @@ void ShutDownConnect(int sockConn)
 }
 
 
-
+Sync *cli=new Sync();
 
 void filesync(int num)
 {
   struct sockaddr_in server_addr;
   int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
-  Sync *cli=new Sync();
   cli->SetsockConn(sockConn);
   cli->FileSync();
   ShutDownConnect(sockConn);
@@ -399,11 +398,11 @@ void mainstream()
 {
 
   
-  //struct sockaddr_in server_addr;
-  //int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
-  //cli->SetsockConn(sockConn);
-  //cli->SyncAdd("./SyncFloderServer/test1.txt",0);
-  //cli->SyncDelete("./SyncFloderServer/test1.txt");
+  struct sockaddr_in server_addr;
+  int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
+  cli->SetsockConn(sockConn);
+  cli->SyncAdd("./SyncFloderServer/test1.txt",0);
+  cli->SyncDelete("./SyncFloderServer/test1.txt");
 
   signal(SIGALRM,filesync);
   alarm(UPDATERATE);
