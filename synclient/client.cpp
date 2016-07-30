@@ -193,12 +193,14 @@ struct FileList
 class Sync
 {
 public:
-  Sync(int serverconnection)
-    :sockConn(serverconnection)
+  Sync()
   {
     InitLocalfl();
     InitServerfl();
-
+  }
+  void SetsockConn(int sockConn)
+  {
+    this->sockConn=sockConn;
   }
   void InitServerfl()
   {
@@ -385,7 +387,8 @@ void filesync(int num)
 {
   struct sockaddr_in server_addr;
   int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
-  struct Sync *cli=new Sync(sockConn);
+  Sync *cli=new Sync();
+  cli->SetsockConn(sockConn);
   cli->FileSync();
   ShutDownConnect(sockConn);
   alarm(UPDATERATE);
@@ -396,6 +399,9 @@ void mainstream()
 {
 
   
+  //struct sockaddr_in server_addr;
+  //int sockConn=ConnectToServer("192.168.84.128",DEFAULTPORT,server_addr);
+  //cli->SetsockConn(sockConn);
   //cli->SyncAdd("./SyncFloderServer/test1.txt",0);
   //cli->SyncDelete("./SyncFloderServer/test1.txt");
 
