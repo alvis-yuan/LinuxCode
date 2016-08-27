@@ -1,3 +1,11 @@
+#include <stdio.h>
+#include <zlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <memory.h>
+#include <unistd.h>
+#define BUFFSIZE 512
 void CompressFile(const char * filepath)
 {
   gzFile temp;
@@ -17,9 +25,9 @@ void CompressFile(const char * filepath)
   }
   gzclose(temp);
 }
-
 void UnCompressFile(const char *filepath)
 {
+  printf("hello\n");
   gzFile temp;
   int filefd;
   char readbuf[BUFFSIZE]={'\0'};
@@ -36,4 +44,15 @@ void UnCompressFile(const char *filepath)
     memset(readbuf,'\0',BUFFSIZE);
   }
   gzclose(temp);
+}
+
+
+
+
+
+int main()
+{
+  CompressFile("./test7.txt");
+  UnCompressFile("./try.txt");
+  return 0;
 }
